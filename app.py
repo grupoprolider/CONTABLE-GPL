@@ -48,6 +48,12 @@ def main():
     # Inyectar CSS personalizado
     st.markdown("""
         <style>
+        /* Ocultar elementos propios de Streamlit para un look más profesional */
+        header {visibility: hidden !important;}
+        #MainMenu {visibility: hidden !important;}
+        footer {visibility: hidden !important;}
+        .stAppDeployButton {display:none !important;}
+        
         div[data-testid="stExpander"] details summary p {
             font-size: 1.15rem !important;
             font-weight: 600 !important;
@@ -60,6 +66,7 @@ def main():
         }
         .block-container {
             max-width: 1200px;
+            padding-top: 2rem !important; /* Ajustar el padding ya que quitamos el header */
         }
         </style>
     """, unsafe_allow_html=True)
