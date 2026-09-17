@@ -443,13 +443,16 @@ def vista_administracion():
                         st.caption(f"⌚ {row['fecha_carga']}")
                     with col3:
                         # Identificador único para el botón
-                        btn_key = f"del_{row['archivo_origen']}_{row['fecha_carga']}"
+                        btn_key = f"del_{index}_{row['banco']}"
                         if st.button("🗑️ Borrar Lote", key=btn_key):
                             with st.spinner("Borrando movimientos..."):
-                                # Intentamos borrar buscando registros de ese archivo y ese usuario subidos en ese minuto
-                                # Para mayor seguridad borraremos todos los que tengan ese 'archivo_origen' exacto
-                                # (en caso de mismo nombre de archivo repetido, los borrará todos, lo cual es preferible a tener dobles)
-                                res_del = supabase.table("movimientos_bancarios").delete().eq("archivo_origen", row['archivo_origen']).execute()
+                                # Para borrar de manera más segura y exacta, filtramos por archivo, banco y usuario.
+                                (supabase.table("movimientos_bancarios")
+                                 .delete()
+                                 .eq("archivo_origen", row['archivo_origen'])
+                                 .eq("banco", row['banco'])
+                                 .eq("usuario_carga", row['usuario_carga'])
+                                 .execute())
                                 st.success("¡Lote borrado!")
                                 st.rerun()
                     st.divider()
