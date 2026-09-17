@@ -6,6 +6,7 @@ echo ==================================================
 echo.
 git add .
 git commit -m "Actualizacion rapida de usuario"
+git pull --rebase origin main
 git push
 echo.
 echo ==================================================

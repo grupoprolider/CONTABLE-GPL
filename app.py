@@ -88,7 +88,7 @@ def main():
     st.sidebar.markdown("---")
     
     st.sidebar.title("Navegación")
-    modo = st.sidebar.radio("Ir a:", ["Cargar Banco", "Reporte Consolidado"])
+    modo = st.sidebar.radio("Ir a:", ["Cargar Banco", "Reporte Consolidado", "Administrar Base de Datos"])
     
     if st.sidebar.button("Cerrar Sesión"):
         st.session_state["logged_in"] = False
@@ -96,8 +96,10 @@ def main():
     
     if modo == "Cargar Banco":
         vista_carga()
-    else:
+    elif modo == "Reporte Consolidado":
         vista_reportes()
+    else:
+        vista_administracion()
 
 def vista_carga():
     st.title("🏦 Generador de Asientos Contables")
@@ -136,16 +138,18 @@ def vista_carga():
                                 "concepto_original": str(row['Detalle_Original']),
                                 "concepto_agrupador": str(row['Concepto_Agrupador']),
                                 "importe": float(row['Importe']),
-                                "tipo": "INGRESO" if row['Importe'] > 0 else "EGRESO"
+                                "tipo": "INGRESO" if row['Importe'] > 0 else "EGRESO",
+                                "archivo_origen": uploaded_file.name,
+                                "usuario_carga": st.session_state.get("usuario_actual", "Desconocido")
                             })
                         
                         try:
                             # Insertar en lotes si es muy grande, pero normalmente 1000 filas entra bien
                             respuesta = supabase.table("movimientos_bancarios").insert(registros).execute()
-                            st.success(f"¡Se guardaron {len(registros)} movimientos exitosamente en la nube!")
+                            st.success(f"¡Se guardaron {len(registros)} movimientos exitosamente en la nube bajo el usuario {st.session_state.get('usuario_actual')}!")
                         except Exception as db_err:
                             st.error(f"Error al guardar en base de datos: {str(db_err)}")
-                            st.info("Asegúrate de haber creado la tabla en Supabase con el script 'crear_tablas.sql'.")
+                            st.info("Asegúrate de haber ejecutado el script 'actualizar_tablas.sql' en Supabase.")
             
             st.markdown("### 🔍 Filtros")
             col_search, col_date = st.columns(2)
@@ -397,6 +401,62 @@ def vista_reportes():
 
         except Exception as e:
             st.error(f"Error al cargar reportes: {str(e)}")
+
+def vista_administracion():
+    st.title("⚙️ Administrar Base de Datos")
+    st.markdown("Aquí puedes ver el registro de todos los archivos subidos y borrar aquellos que se hayan cargado por error o repetidos.")
+    
+    if not supabase:
+        st.error("No hay conexión a Supabase.")
+        return
+        
+    with st.spinner("Cargando historial de subidas..."):
+        try:
+            # Traer solo las columnas necesarias para armar el listado
+            res = supabase.table("movimientos_bancarios").select("id, banco, archivo_origen, usuario_carga, created_at").execute()
+            data = res.data
+            
+            if not data:
+                st.info("La base de datos está vacía.")
+                return
+                
+            df = pd.DataFrame(data)
+            df['created_at'] = pd.to_datetime(df['created_at']).dt.tz_convert('America/Argentina/Buenos_Aires')
+            
+            # Agrupar por archivo, banco y fecha de carga aproximada (minuto)
+            # Como a veces un mismo archivo se puede subir dos veces en distintos dias, agrupamos por fecha de carga
+            df['fecha_carga'] = df['created_at'].dt.strftime('%Y-%m-%d %H:%M')
+            
+            lotes = df.groupby(['archivo_origen', 'banco', 'usuario_carga', 'fecha_carga']).size().reset_index(name='cantidad_movimientos')
+            lotes = lotes.sort_values(by='fecha_carga', ascending=False)
+            
+            st.markdown("### Historial de Archivos Subidos")
+            
+            for index, row in lotes.iterrows():
+                with st.container():
+                    col1, col2, col3 = st.columns([3, 2, 1])
+                    with col1:
+                        st.markdown(f"**Archivo:** `{row['archivo_origen']}`")
+                        st.caption(f"Banco: {row['banco']} | {row['cantidad_movimientos']} movimientos")
+                    with col2:
+                        st.markdown(f"👤 **Usuario:** {row['usuario_carga']}")
+                        st.caption(f"⌚ {row['fecha_carga']}")
+                    with col3:
+                        # Identificador único para el botón
+                        btn_key = f"del_{row['archivo_origen']}_{row['fecha_carga']}"
+                        if st.button("🗑️ Borrar Lote", key=btn_key):
+                            with st.spinner("Borrando movimientos..."):
+                                # Intentamos borrar buscando registros de ese archivo y ese usuario subidos en ese minuto
+                                # Para mayor seguridad borraremos todos los que tengan ese 'archivo_origen' exacto
+                                # (en caso de mismo nombre de archivo repetido, los borrará todos, lo cual es preferible a tener dobles)
+                                res_del = supabase.table("movimientos_bancarios").delete().eq("archivo_origen", row['archivo_origen']).execute()
+                                st.success("¡Lote borrado!")
+                                st.rerun()
+                    st.divider()
+                    
+        except Exception as e:
+            st.error(f"Error al leer base de datos: {e}")
+            st.info("Asegúrate de haber ejecutado el archivo 'actualizar_tablas.sql' en el editor SQL de Supabase para tener las columnas de 'archivo_origen' y 'usuario_carga'.")
 
 if __name__ == "__main__":
     main()
