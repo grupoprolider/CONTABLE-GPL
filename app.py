@@ -19,9 +19,9 @@ st.set_page_config(page_title="Asientos Contables Bancarios", page_icon="🏦", 
 # --- USUARIOS PERMITIDOS ---
 # Aquí puedes cambiar los nombres y contraseñas (4 dígitos)
 USUARIOS = {
-    "Laura": "1111",
-    "Maria": "2222",
-    "Tato": "3333"
+    "Andre": "3423",
+    "Juli": "3423",
+    "Lu": "3423"
 }
 
 def login():
