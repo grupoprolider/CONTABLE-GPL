@@ -69,13 +69,13 @@ def main():
         if os.path.exists("logo.png"):
             col1, col2, col3 = st.columns([1,2,1])
             with col2:
-                st.image("logo.png", use_column_width=True)
+                st.image("logo.png", use_container_width=True)
         login()
         return
 
     # Si está logueado, mostrar la app normal
     if os.path.exists("logo.png"):
-        st.sidebar.image("logo.png", use_column_width=True)
+        st.sidebar.image("logo.png", use_container_width=True)
         
     st.sidebar.markdown(f"👤 **Usuario:** {st.session_state['usuario_actual']}")
     st.sidebar.markdown("---")
