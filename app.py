@@ -16,7 +16,35 @@ if url and key:
 
 st.set_page_config(page_title="Asientos Contables Bancarios", page_icon="🏦", layout="wide")
 
+# --- USUARIOS PERMITIDOS ---
+# Aquí puedes cambiar los nombres y contraseñas (4 dígitos)
+USUARIOS = {
+    "Laura": "1111",
+    "Maria": "2222",
+    "Tato": "3333"
+}
+
+def login():
+    st.markdown("## 🔒 Acceso Restringido")
+    st.markdown("Por favor, identifícate para ingresar al sistema contable.")
+    
+    with st.form("login_form"):
+        usuario = st.selectbox("Usuario", list(USUARIOS.keys()))
+        password = st.text_input("Contraseña (PIN)", type="password")
+        submit = st.form_submit_button("Ingresar")
+        
+        if submit:
+            if USUARIOS.get(usuario) == password:
+                st.session_state["usuario_actual"] = usuario
+                st.session_state["logged_in"] = True
+                st.rerun()
+            else:
+                st.error("❌ Contraseña incorrecta")
+
 def main():
+    if "logged_in" not in st.session_state:
+        st.session_state["logged_in"] = False
+
     # Inyectar CSS personalizado
     st.markdown("""
         <style>
@@ -36,12 +64,28 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    # Mostrar logo si existe
+    # Mostrar logo si existe (centrado para el login)
+    if not st.session_state["logged_in"]:
+        if os.path.exists("logo.png"):
+            col1, col2, col3 = st.columns([1,2,1])
+            with col2:
+                st.image("logo.png", use_column_width=True)
+        login()
+        return
+
+    # Si está logueado, mostrar la app normal
     if os.path.exists("logo.png"):
         st.sidebar.image("logo.png", use_column_width=True)
         
+    st.sidebar.markdown(f"👤 **Usuario:** {st.session_state['usuario_actual']}")
+    st.sidebar.markdown("---")
+    
     st.sidebar.title("Navegación")
     modo = st.sidebar.radio("Ir a:", ["Cargar Banco", "Reporte Consolidado"])
+    
+    if st.sidebar.button("Cerrar Sesión"):
+        st.session_state["logged_in"] = False
+        st.rerun()
     
     if modo == "Cargar Banco":
         vista_carga()
